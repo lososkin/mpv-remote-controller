@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-	<title>MPV пульт</title>
+	<title>MPV remote</title>
 	<style type="text/css">
 		*{
 			margin: 0px;
@@ -37,65 +37,8 @@
 		    display: table-cell;
 		    width: 10%;
 		}
-		#sub_panel{
-			display: none;
-		}
 	</style>
 	<script type="text/javascript">
-		function change_dir(dir){
-			return function(){
-				const requestOptions = {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json'},
-					mode: 'cors',
-					body: JSON.stringify({dir:dir})
-				};
-				fetch("changedir/",requestOptions).then(res=> res.json()).then(data=>{
-					if (data.type ==='dir'){
-						document.getElementById("sub_panel2").innerHTML="";
-						const requestOptions2 = {
-							method: 'POST',
-							headers: { 'Content-Type': 'application/json'},
-							mode: 'cors'
-						};
-						fetch("getdirs/",requestOptions2).then(res=> res.json()).then(data=>{
-							dirs = data.dirs;
-							for(var i=0;i<dirs.length;i++){
-								if (dirs[i][0]!=='.'){
-									const newDiv = document.createElement("div");
-									newDiv.innerHTML = '📁';
-									newDiv.classList.add("space");
-									newDiv.onclick = change_dir(dirs[i]);
-									const newContent = document.createTextNode(dirs[i]);
-									newDiv.appendChild(newContent);
-									const currentDiv = document.getElementById("sub_panel2");
-									currentDiv.appendChild(newDiv);
-								}
-							}
-							files = data.files;
-							for(var i=0;i<files.length;i++){
-								if (files[i][0]!=='.'){
-									const newDiv = document.createElement("div");
-									if (files[i].substr(files[i].length-4)==='.ass' || files[i].substr(files[i].length-4)==='.srt' )
-										newDiv.innerHTML = '📜';
-									else
-										newDiv.innerHTML = '📄';
-									newDiv.classList.add("space");
-									newDiv.onclick = change_dir(files[i]);
-									const newContent = document.createTextNode(files[i]);
-									newDiv.appendChild(newContent);
-									const currentDiv = document.getElementById("sub_panel2");
-									currentDiv.appendChild(newDiv);
-								}
-							}
-						});
-					}else{
-						panel();
-					}
-				});
-			};
-		}
-		
 		function command(com){
 			const requestOptions = {
 				method: 'POST',
@@ -105,55 +48,10 @@
 			};
 			fetch("command/",requestOptions);
 		}
-		function sub_panel(){
-			document.getElementById("sub_panel").style.display = "inline";
-			document.getElementById("panel").style.display = "none";
-			const requestOptions = {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json'},
-				mode: 'cors'
-			};
-			fetch("getdirs/",requestOptions).then(res=> res.json()).then(data=>{
-				dirs = data.dirs;
-				document.getElementById("sub_panel2").innerHTML="";
-				for(var i=0;i<dirs.length;i++){
-					if (dirs[i][0]!=='.'){
-						const newDiv = document.createElement("div");
-						newDiv.innerHTML = '📁';
-						newDiv.classList.add("space");
-						newDiv.onclick = change_dir(dirs[i]);
-						const newContent = document.createTextNode(dirs[i]);
-						newDiv.appendChild(newContent);
-						const currentDiv = document.getElementById("sub_panel2");
-						currentDiv.appendChild(newDiv);
-					}
-				}
-				files = data.files;
-				for(var i=0;i<files.length;i++){
-					if (files[i][0]!=='.'){
-						const newDiv = document.createElement("div");
-						if (files[i].substr(files[i].length-4)==='.ass' || files[i].substr(files[i].length-4)==='.srt' )
-							newDiv.innerHTML = '📜';
-						else
-							newDiv.innerHTML = '📄';
-						newDiv.classList.add("space");
-						newDiv.onclick = change_dir(files[i]);
-						const newContent = document.createTextNode(files[i]);
-						newDiv.appendChild(newContent);
-						const currentDiv = document.getElementById("sub_panel2");
-						currentDiv.appendChild(newDiv);
-					}
-				}
-			});
-		}
-		function panel(){
-			document.getElementById("sub_panel").style.display = "none";
-			document.getElementById("panel").style.display = "inline";
-		}
 	</script>
 </head>
 <body>
-	<div id="panel">
+	<div>
 		<div class="Row" align="center">
 			<div class="bias"></div>
 			<div class="Column" onclick="command('sub')">Subs</div>
@@ -207,13 +105,8 @@
 		</div>
 
 		<div align="center">	
-			<div class="space" onclick="sub_panel()"> sub from file </div>
+			<div class="space" onclick="window.location.href='subs'"> sub from file </div>
 		</div>
-	</div>
-	<div id="sub_panel" align="center">
-			<div class="space" onclick="panel()"> 🏠 </div>
-			<div class="space" onclick='change_dir("..")()'>..</div>
-			<div id="sub_panel2"></div>
 	</div>
 </div>
 </body>

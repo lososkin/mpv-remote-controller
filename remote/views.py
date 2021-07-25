@@ -6,6 +6,9 @@ import json, socket, os
 def index(request):
     return render(request, 'remote/index.html')
 
+def subs(request):
+    return render(request, 'remote/subs.html')
+
 @csrf_exempt
 def command(request):
     command = json.loads(request.body)['command']

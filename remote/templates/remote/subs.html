@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>MPV remote</title>
+	<style type="text/css">
+		*{
+			margin: 0px;
+			padding: 0px;
+		}
+		.space{
+			border: 5px solid black;
+			border-radius: 10px;
+			width: 80%;
+			text-align: center;	
+			font-size: 60px;
+			padding-top: 20px;
+			padding-bottom: 20px;
+			margin-top: 100px;
+		}
+		.Row {
+		    display: table;
+		    width: 100%; /*Optional*/
+		    table-layout: fixed; /*Optional*/
+		    margin-top:40px; 
+		}
+		.Column {
+		    display: table-cell;
+		    width: 35%;
+		    border: 5px solid black;
+			border-radius: 10px;
+			text-align: center;	
+			font-size: 60px;
+			padding-top: 20px;
+			padding-bottom: 20px;
+		}
+		.bias {
+		    display: table-cell;
+		    width: 10%;
+		}
+	</style>
+</head>
+<body>
+	<div align="center">
+			<div class="space" onclick="window.location.href='/'"> 🏠 </div>
+			<div class="space" onclick='change_dir("..")()'>..</div>
+			<div id="sub_panel"></div>
+	</div>
+
+	<script type="text/javascript">
+		function GetAndDrawDirsAndFiles(){
+			document.getElementById("sub_panel").innerHTML="";
+			const requestOptions = {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json'},
+				mode: 'cors'
+			};
+			fetch("/getdirs/",requestOptions).then(res=> res.json()).then(data=>{
+				dirs = data.dirs;
+				for(var i=0;i<dirs.length;i++){
+					if (dirs[i][0]!=='.'){
+						const newDiv = document.createElement("div");
+						newDiv.innerHTML = '📁';
+						newDiv.classList.add("space");
+						newDiv.onclick = change_dir(dirs[i]);
+						const newContent = document.createTextNode(dirs[i]);
+						newDiv.appendChild(newContent);
+						const currentDiv = document.getElementById("sub_panel");
+						currentDiv.appendChild(newDiv);
+					}
+				}
+				files = data.files;
+				for(var i=0;i<files.length;i++){
+					if (files[i][0]!=='.'){
+						const newDiv = document.createElement("div");
+						if (files[i].substr(files[i].length-4)==='.ass' || files[i].substr(files[i].length-4)==='.srt' )
+							newDiv.innerHTML = '📜';
+						else
+							newDiv.innerHTML = '📄';
+						newDiv.classList.add("space");
+						newDiv.onclick = change_dir(files[i]);
+						const newContent = document.createTextNode(files[i]);
+						newDiv.appendChild(newContent);
+						const currentDiv = document.getElementById("sub_panel");
+						currentDiv.appendChild(newDiv);
+					}
+				}
+			});
+		}
+
+		function change_dir(dir){
+			return function(){
+				const requestOptions = {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json'},
+					mode: 'cors',
+					body: JSON.stringify({dir:dir})
+				};
+				fetch("/changedir/",requestOptions).then(res=> res.json()).then(data=>{
+					if (data.type ==='dir'){
+						GetAndDrawDirsAndFiles();
+					}else{
+						window.location.href='/';
+					}
+				});
+			};
+		}
+		GetAndDrawDirsAndFiles();
+	</script>
+
+</body>
+</html>
