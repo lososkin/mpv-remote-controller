@@ -37,12 +37,21 @@
 		    display: table-cell;
 		    width: 10%;
 		}
+		.noselect {
+		  -webkit-touch-callout: none; /* iOS Safari */
+		    -webkit-user-select: none; /* Safari */
+		     -khtml-user-select: none; /* Konqueror HTML */
+		       -moz-user-select: none; /* Old versions of Firefox */
+		        -ms-user-select: none; /* Internet Explorer/Edge */
+		            user-select: none; /* Non-prefixed version, currently
+		                                  supported by Chrome, Edge, Opera and Firefox */
+		}
 	</style>
 </head>
 <body>
 	<div align="center">
-			<div class="space" onclick="window.location.href='/'"> 🏠 </div>
-			<div class="space" onclick='change_dir("..")()'>..</div>
+			<div class="space noselect" onclick="window.location.href='/'"> 🏠 </div>
+			<div class="space noselect" onclick='change_dir("..")()'>..</div>
 			<div id="sub_panel"></div>
 	</div>
 
@@ -61,6 +70,7 @@
 						const newDiv = document.createElement("div");
 						newDiv.innerHTML = '📁';
 						newDiv.classList.add("space");
+						newDiv.classList.add("noselect");
 						newDiv.onclick = change_dir(dirs[i]);
 						const newContent = document.createTextNode(dirs[i]);
 						newDiv.appendChild(newContent);
@@ -77,6 +87,7 @@
 						else
 							newDiv.innerHTML = '📄';
 						newDiv.classList.add("space");
+						newDiv.classList.add("noselect");
 						newDiv.onclick = change_dir(files[i]);
 						const newContent = document.createTextNode(files[i]);
 						newDiv.appendChild(newContent);

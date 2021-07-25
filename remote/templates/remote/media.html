@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>MPV remote</title>
+	<style type="text/css">
+		*{
+			margin: 0px;
+			padding: 0px;
+		}
+		.blue-background{
+			background-color: #94e1ff;
+		}
+		.space{
+			border: 5px solid black;
+			border-radius: 10px;
+			width: 80%;
+			text-align: center;	
+			font-size: 60px;
+			padding-top: 20px;
+			padding-bottom: 20px;
+			margin-top: 100px;
+			position: relative;
+		}
+		.Row {
+		    display: table;
+		    width: 100%; /*Optional*/
+		    table-layout: fixed; /*Optional*/
+		    margin-top:40px; 
+		}
+		.Column {
+		    display: table-cell;
+		    width: 35%;
+		    border: 5px solid black;
+			border-radius: 10px;
+			text-align: center;	
+			font-size: 60px;
+			padding-top: 20px;
+			padding-bottom: 20px;
+		}
+		.bias {
+		    display: table-cell;
+		    width: 10%;
+		}
+		.open-button{
+			background-color: #7fe387;
+			margin-top: 0px;
+		}
+		.open-button-panel{
+			padding-bottom: 20px;
+			padding-top: 20px;
+			position: fixed;
+			bottom:0px;
+			width: 100%;
+			background-color: white;
+			border: 5px solid black;
+		}
+		.not-active{
+			background-color: #d1d1d1;
+		}
+		.select-counter{
+			position: absolute;
+			top:-8px;
+			right: 3px;
+			font-size: 45px;
+		}
+		.display-none{
+			display: none;
+		}
+		.choose-text{
+			font-size: 100px;
+		}
+		#openChose{
+			margin-top: 40px;
+		}
+		.noselect {
+		  -webkit-touch-callout: none; /* iOS Safari */
+		    -webkit-user-select: none; /* Safari */
+		     -khtml-user-select: none; /* Konqueror HTML */
+		       -moz-user-select: none; /* Old versions of Firefox */
+		        -ms-user-select: none; /* Internet Explorer/Edge */
+		            user-select: none; /* Non-prefixed version, currently
+		                                  supported by Chrome, Edge, Opera and Firefox */
+		}
+	</style>
+</head>
+<body>
+	<div id="files-panel">
+		<div align="center">
+				<div class="space noselect" onclick="window.location.href='/'"> 🏠 </div>
+				<div class="space noselect" onclick='change_dir("..")()'>..</div>
+				<div id="panel"></div>
+				<div class="space noselect"> a </div>
+		</div>
+		<div class="open-button-panel" align="center">
+			<div class="open-button space noselect not-active" id="open-button" onclick="openFiles()">
+				Open files
+			</div>
+		</div>
+	</div>
+	<div id="openChose" class="display-none" align="center">
+		<span class="choose-text">What to do with selected files:</span>
+		<div class="space noselect" onclick="playNow()">Play now</div>
+		<div class="space noselect" onclick="appendToPlaylist()">Append to playlist</div>
+	</div>
+	<script type="text/javascript">
+
+		function appendToPlaylist(){
+			const requestOptions = {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json'},
+				mode: 'cors',
+				body: JSON.stringify({files:selected_files})
+			};
+			fetch("/appendtoplaylist/",requestOptions);
+			window.location.href='/';
+		}
+
+		function playNow(){
+			const requestOptions = {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json'},
+				mode: 'cors',
+				body: JSON.stringify({files:selected_files})
+			};
+			fetch("/playnow/",requestOptions);
+			window.location.href='/';
+		}
+
+		function openFiles(){
+			if (selected_files.length!==0){
+				document.getElementById("files-panel").classList.add("display-none");
+				document.getElementById("openChose").classList.remove("display-none");
+			}
+		}
+
+		function checkFileExtenshion(filename,extensions){
+			for(var i=0;i<extensions.length;i++)
+				if(filename.substr(filename.length-extensions[i].length)==extensions[i])
+					return true;
+			return false;
+		}
+
+		function GetAndDrawDirsAndFiles(){
+			document.getElementById("panel").innerHTML="";
+			const requestOptions = {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json'},
+				mode: 'cors'
+			};
+			fetch("/getdirs/",requestOptions).then(res=> res.json()).then(data=>{
+				dirs = data.dirs;
+				for(var i=0;i<dirs.length;i++){
+					if (dirs[i][0]!=='.'){
+						const newDiv = document.createElement("div");
+						newDiv.innerHTML = '📁';
+						newDiv.classList.add("space");
+						newDiv.classList.add("noselect");
+						newDiv.onclick = change_dir(dirs[i]);
+						const newContent = document.createTextNode(dirs[i]);
+						newDiv.appendChild(newContent);
+						const currentDiv = document.getElementById("panel");
+						currentDiv.appendChild(newDiv);
+					}
+				}
+				files = data.files;
+				for(var i=0;i<files.length;i++){
+					if (files[i][0]!=='.'){
+						const newDiv = document.createElement("div");
+						if (checkFileExtenshion(files[i],['.webm','.mkv','.avi','.mp4']))
+							newDiv.innerHTML = '🎞';
+						else
+							newDiv.innerHTML = '📄';
+						newDiv.classList.add("space");
+						newDiv.classList.add("noselect");
+						newDiv.onclick = selectFile(files[i]);
+						newDiv.id = files[i];
+						const newContent = document.createTextNode(files[i]);
+						newDiv.appendChild(newContent);
+						selCounter = document.createElement("span");
+						newDiv.appendChild(selCounter);
+						selCounter.classList.add('select-counter');
+						selCounter.id = files[i]+"selCounter";
+						const currentDiv = document.getElementById("panel");
+						currentDiv.appendChild(newDiv);
+					}
+				}
+			});
+		}
+
+		function change_dir(dir){
+			if (selected_files.length!==0)
+				document.getElementById("open-button").classList.add("not-active");
+			selected_files = [];
+			return function(){
+				const requestOptions = {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json'},
+					mode: 'cors',
+					body: JSON.stringify({dir:dir})
+				};
+				fetch("/changedir/",requestOptions).then(res=> res.json()).then(data=>{
+					if (data.type ==='dir'){
+						GetAndDrawDirsAndFiles();
+					}else{
+						window.location.href='/';
+					}
+				});
+			};
+		}
+
+		function updateSeletionCounters(){
+			var el = document.getElementsByClassName("select-counter");
+			for (var i=0;i<el.length;i++){
+				el[i].innerHTML = "";
+			}
+			for (var i=0;i<selected_files.length;i++){
+				document.getElementById(selected_files[i]+"selCounter").innerHTML = String(i+1);
+			}
+		}
+
+		function selectFile(file){
+			return function(){
+				i = selected_files.indexOf(file);
+				if (i===-1){
+					if (selected_files.length===0)
+						document.getElementById("open-button").classList.remove("not-active");
+					selected_files.push(file);
+					document.getElementById(file).classList.add("blue-background");
+				}else{
+					selected_files.splice(i,1);
+					document.getElementById(file).classList.remove("blue-background");
+					if (selected_files.length===0)
+						document.getElementById("open-button").classList.add("not-active");
+				}
+				updateSeletionCounters();
+			};
+		}
+		selected_files = [];
+		GetAndDrawDirsAndFiles();
+	</script>
+
+</body>
+</html>

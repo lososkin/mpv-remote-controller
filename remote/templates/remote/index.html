@@ -37,6 +37,15 @@
 		    display: table-cell;
 		    width: 10%;
 		}
+		.noselect {
+		  -webkit-touch-callout: none; /* iOS Safari */
+		    -webkit-user-select: none; /* Safari */
+		     -khtml-user-select: none; /* Konqueror HTML */
+		       -moz-user-select: none; /* Old versions of Firefox */
+		        -ms-user-select: none; /* Internet Explorer/Edge */
+		            user-select: none; /* Non-prefixed version, currently
+		                                  supported by Chrome, Edge, Opera and Firefox */
+		}
 	</style>
 	<script type="text/javascript">
 		function command(com){
@@ -54,58 +63,61 @@
 	<div>
 		<div class="Row" align="center">
 			<div class="bias"></div>
-			<div class="Column" onclick="command('sub')">Subs</div>
+			<div class="Column noselect" onclick="command('sub')">Subs</div>
 			<div class="bias"></div>
-			<div class="Column" onclick="command('audio')">Audio</div>
-			<div class="bias"></div>
-		</div>
-
-		<div class="Row" align="center">
-			<div class="bias"></div>
-			<div class="Column" onclick="command('speed-')">-speed</div>
-			<div class="bias"></div>
-			<div class="Column" onclick="command('speed+')">+speed</div>
+			<div class="Column noselect" onclick="command('audio')">Audio</div>
 			<div class="bias"></div>
 		</div>
 
 		<div class="Row" align="center">
 			<div class="bias"></div>
-			<div class="Column" onclick="command('-10s')">-10s</div>
+			<div class="Column noselect" onclick="command('speed-')">-speed</div>
 			<div class="bias"></div>
-			<div class="Column" onclick="command('+10s')">+10s</div>
-			<div class="bias"></div>
-		</div>
-
-		<div class="Row" align="center">
-			<div class="bias"></div>
-			<div class="Column" onclick="command('-min')">-min</div>
-			<div class="bias"></div>
-			<div class="Column" onclick="command('+min')">+min</div>
+			<div class="Column noselect" onclick="command('speed+')">+speed</div>
 			<div class="bias"></div>
 		</div>
 
 		<div class="Row" align="center">
 			<div class="bias"></div>
-			<div class="Column" onclick="command('back')">prev</div>
+			<div class="Column noselect" onclick="command('-10s')">-10s</div>
 			<div class="bias"></div>
-			<div class="Column" onclick="command('forward')">next</div>
+			<div class="Column noselect" onclick="command('+10s')">+10s</div>
 			<div class="bias"></div>
 		</div>
 
 		<div class="Row" align="center">
 			<div class="bias"></div>
-			<div class="Column" onclick="command('volumedown')">-audio</div>
+			<div class="Column noselect" onclick="command('-min')">-min</div>
 			<div class="bias"></div>
-			<div class="Column" onclick="command('volumeup')">+audio</div>
+			<div class="Column noselect" onclick="command('+min')">+min</div>
+			<div class="bias"></div>
+		</div>
+
+		<div class="Row" align="center">
+			<div class="bias"></div>
+			<div class="Column noselect" onclick="command('back')">prev</div>
+			<div class="bias"></div>
+			<div class="Column noselect" onclick="command('forward')">next</div>
+			<div class="bias"></div>
+		</div>
+
+		<div class="Row" align="center">
+			<div class="bias"></div>
+			<div class="Column noselect" onclick="command('volumedown')">-audio</div>
+			<div class="bias"></div>
+			<div class="Column noselect" onclick="command('volumeup')">+audio</div>
 			<div class="bias"></div>
 		</div>
 
 	 	<div align="center">	
-			<div class="space" onclick="command('space')"> play/stop </div>
+			<div class="space noselect" onclick="command('space')"> play/stop </div>
 		</div>
 
 		<div align="center">	
-			<div class="space" onclick="window.location.href='subs'"> sub from file </div>
+			<div class="space noselect" onclick="window.location.href='subs'"> sub from file </div>
+		</div>
+		<div align="center">	
+			<div class="space noselect" onclick="window.location.href='media'"> open video file </div>
 		</div>
 	</div>
 </div>

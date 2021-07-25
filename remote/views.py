@@ -9,6 +9,9 @@ def index(request):
 def subs(request):
     return render(request, 'remote/subs.html')
 
+def media(request):
+    return render(request, 'remote/media.html')
+
 @csrf_exempt
 def command(request):
     command = json.loads(request.body)['command']
@@ -76,3 +79,34 @@ def changeDir(request):
         except (FileNotFoundError, ConnectionRefusedError):
             print("File socket no found!","1) Ensure mpv is running.","2) Check input-ipc-server option in your mpv config.","3) Check socket_path in mpvremote/settings.py",sep='\n')
         return HttpResponse(json.dumps({'type':'file'}), status = 200)
+
+@csrf_exempt
+def appendToPlaylist(request):
+    filenames = json.loads(request.body)['files']
+    try:
+        for filename in filenames:
+            s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            s.connect("/tmp/mpvsocket")
+            s.send(bytes('{ "command": ["loadfile", "'+os.path.join(os.getcwd(),filename)+'","append"]}', 'utf-8') + b'\n')
+            s.close()
+    except (FileNotFoundError, ConnectionRefusedError):
+        print("File socket no found!","1) Ensure mpv is running.","2) Check input-ipc-server option in your mpv config.","3) Check socket_path in mpvremote/settings.py",sep='\n')
+    return HttpResponse("OK", status = 200)
+
+@csrf_exempt
+def playNow(request):
+    filenames = json.loads(request.body)['files']
+    try:
+        s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        s.connect("/tmp/mpvsocket")
+        s.send(bytes('{ "command": ["loadfile", "'+os.path.join(os.getcwd(),filenames[0])+'","replace"]}', 'utf-8') + b'\n')
+        s.close()
+        for filename in filenames[1:]:
+            s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            s.connect("/tmp/mpvsocket")
+            s.send(bytes('{ "command": ["loadfile", "'+os.path.join(os.getcwd(),filename)+'","append"]}', 'utf-8') + b'\n')
+            s.close()
+    except (FileNotFoundError, ConnectionRefusedError):
+        s = os.popen('mpv --input-ipc-server=/tmp/mpvsocket '+' '.join(['"'+os.path.join(os.getcwd(),filename)+'"' for filename in filenames]))
+        s.read()
+    return HttpResponse("OK", status = 200)
