@@ -35,12 +35,15 @@ def command(request):
         command = '{ "command": ["keypress", ">"] }'
     elif command=='back':
         command = '{ "command": ["keypress", "<"] }'
-    s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-    s.connect("/tmp/mpvsocket")
-    if command=='+10s' or command=='-10s':
+    try:
+        s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        s.connect("/tmp/mpvsocket")
+        if command=='+10s' or command=='-10s':
+            s.send(bytes(command, 'utf-8') + b'\n')
         s.send(bytes(command, 'utf-8') + b'\n')
-    s.send(bytes(command, 'utf-8') + b'\n')
-    s.close()
+        s.close()
+    except:
+        print("File socket no found!","1) Ensure mpv is running.","2) Check input-ipc-server option in your mpv config.","3) Check socket_path in mpvremote/settings.py",sep='\n')
     return HttpResponse("OK", status = 200)
 
 @csrf_exempt
@@ -62,8 +65,11 @@ def changeDir(request):
         os.chdir(d)
         return HttpResponse(json.dumps({'type':'dir'}), status = 200)
     else:
-        s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        s.connect("/tmp/mpvsocket")
-        s.send(bytes('{ "command": ["sub-add", "'+os.path.join(os.getcwd(),d)+'"]}', 'utf-8') + b'\n')
-        s.close()
+        try:
+            s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            s.connect("/tmp/mpvsocket")
+            s.send(bytes('{ "command": ["sub-add", "'+os.path.join(os.getcwd(),d)+'"]}', 'utf-8') + b'\n')
+            s.close()
+        except (FileNotFoundError, ConnectionRefusedError):
+            print("File socket no found!","1) Ensure mpv is running.","2) Check input-ipc-server option in your mpv config.","3) Check socket_path in mpvremote/settings.py",sep='\n')
         return HttpResponse(json.dumps({'type':'file'}), status = 200)
