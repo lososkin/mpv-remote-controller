@@ -81,6 +81,10 @@
 		            user-select: none; /* Non-prefixed version, currently
 		                                  supported by Chrome, Edge, Opera and Firefox */
 		}
+		.blank-footer{
+			border: 0px;
+			margin-bottom: 100px;
+		}
 	</style>
 </head>
 <body>
@@ -89,7 +93,7 @@
 				<div class="space noselect" onclick="window.location.href='/'"> 🏠 </div>
 				<div class="space noselect" onclick='change_dir("..")()'>..</div>
 				<div id="panel"></div>
-				<div class="space noselect"> a </div>
+				<div class="space blank-footer"></div>
 		</div>
 		<div class="open-button-panel" align="center">
 			<div class="open-button space noselect not-active" id="open-button" onclick="openFiles()">

@@ -41,6 +41,8 @@ def command(request):
         command = '{ "command": ["keypress", ">"] }'
     elif command=='back':
         command = '{ "command": ["keypress", "<"] }'
+    elif command=='f':
+        command = '{ "command": ["keypress", "f"] }'
     try:
         s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         s.connect("/tmp/mpvsocket")
