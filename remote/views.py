@@ -2,6 +2,7 @@ from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
 from django.http import HttpResponse
 import json, socket, os
+from django.conf import settings
 
 def index(request):
     return render(request, 'remote/index.html')
@@ -45,7 +46,7 @@ def command(request):
         command = '{ "command": ["cycle", "fullscreen"] }'
     try:
         s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        s.connect("/tmp/mpvsocket")
+        s.connect(settings.SOCKET_PATH)
         s.send(bytes(command, 'utf-8') + b'\n')
         s.close()
     except:
@@ -73,7 +74,7 @@ def changeDir(request):
     else:
         try:
             s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-            s.connect("/tmp/mpvsocket")
+            s.connect(settings.SOCKET_PATH)
             s.send(bytes('{ "command": ["sub-add", "'+os.path.join(os.getcwd(),d)+'"]}', 'utf-8') + b'\n')
             s.close()
         except (FileNotFoundError, ConnectionRefusedError):
@@ -86,7 +87,7 @@ def appendToPlaylist(request):
     try:
         for filename in filenames:
             s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-            s.connect("/tmp/mpvsocket")
+            s.connect(settings.SOCKET_PATH)
             s.send(bytes('{ "command": ["loadfile", "'+os.path.join(os.getcwd(),filename)+'","append"]}', 'utf-8') + b'\n')
             s.close()
     except (FileNotFoundError, ConnectionRefusedError):
@@ -98,15 +99,15 @@ def playNow(request):
     filenames = json.loads(request.body)['files']
     try:
         s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        s.connect("/tmp/mpvsocket")
+        s.connect(settings.SOCKET_PATH)
         s.send(bytes('{ "command": ["loadfile", "'+os.path.join(os.getcwd(),filenames[0])+'","replace"]}', 'utf-8') + b'\n')
         s.close()
         for filename in filenames[1:]:
             s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-            s.connect("/tmp/mpvsocket")
+            s.connect(settings.SOCKET_PATH)
             s.send(bytes('{ "command": ["loadfile", "'+os.path.join(os.getcwd(),filename)+'","append"]}', 'utf-8') + b'\n')
             s.close()
     except (FileNotFoundError, ConnectionRefusedError):
-        s = os.popen('mpv --input-ipc-server=/tmp/mpvsocket '+' '.join(['"'+os.path.join(os.getcwd(),filename)+'"' for filename in filenames]))
+        s = os.popen('mpv --input-ipc-server='+settings.SOCKET_PATH+' '+' '.join(['"'+os.path.join(os.getcwd(),filename)+'"' for filename in filenames]))
         s.read()
     return HttpResponse("OK", status = 200)
