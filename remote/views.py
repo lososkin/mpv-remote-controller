@@ -16,38 +16,36 @@ def media(request):
 def command(request):
     command = json.loads(request.body)['command']
     if command=='sub':
-        command = '{ "command": ["keypress", "J"] }'
+        command = '{ "command": ["osd-auto","cycle", "sub"] }'
     elif command=='audio':
-        command = '{ "command": ["keypress", "#"] }'
+        command = '{ "command": ["osd-auto","cycle", "audio"] }'
     elif command=='speed+':
-        command = '{ "command": ["keypress", "]"] }'
+        command = '{ "command": ["osd-auto","add", "speed","0.1"] }'
     elif command=='speed-':
-        command = '{ "command": ["keypress", "["] }'
+        command = '{ "command": ["osd-auto","add", "speed","-0.1"] }'
     elif command=='-10s':
-        command = '{ "command": ["keypress", "left"] }'
+        command = '{ "command": ["osd-auto","seek", "-10"] }'
     elif command=='+10s':
-        command = '{ "command": ["keypress", "right"] }'
+        command = '{ "command": ["osd-auto","seek", "10"] }'
     elif command=='volumeup':
-        command = '{ "command": ["keypress", "0"] }'
+        command = '{ "command": ["osd-auto","add", "volume","5"] }'
     elif command=='volumedown':
-        command = '{ "command": ["keypress", "9"] }'
+        command = '{ "command": ["osd-auto","add", "volume","-5"] }'
     elif command=='-min':
-        command = '{ "command": ["keypress", "down"] }'
+        command = '{ "command": ["osd-auto","seek", "-60"] }'
     elif command=='+min':
-        command = '{ "command": ["keypress", "up"] }'
+        command = '{ "command": ["osd-auto","seek", "60"] }'
     elif command=='space':
-        command = '{ "command": ["keypress", "space"] }'
+        command = '{ "command": ["cycle", "pause"] }'
     elif command=='forward':
-        command = '{ "command": ["keypress", ">"] }'
+        command = '{ "command": ["osd-auto","playlist-next"] }'
     elif command=='back':
-        command = '{ "command": ["keypress", "<"] }'
+        command = '{ "command": ["osd-auto","playlist-prev"] }'
     elif command=='f':
-        command = '{ "command": ["keypress", "f"] }'
+        command = '{ "command": ["cycle", "fullscreen"] }'
     try:
         s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         s.connect("/tmp/mpvsocket")
-        if command=='+10s' or command=='-10s':
-            s.send(bytes(command, 'utf-8') + b'\n')
         s.send(bytes(command, 'utf-8') + b'\n')
         s.close()
     except:
