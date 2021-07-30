@@ -27,7 +27,7 @@ Now open your browser, go to **your_local_ip:port** and enjoy the remote dominat
 > **_NOTE:_**  replace **your_local_ip** with **0.0.0.0** if you want bind sever to all available IP
 
 #### Open files by double click
-If you want controlling mpv which was opened by double click, you should add in your mpv.conf next line
+If you want controlling mpv which was opened by double click on media file, you should add in your mpv.conf next line
 ```
 input-ipc-server=/tmp/mpvsocket
 ```
