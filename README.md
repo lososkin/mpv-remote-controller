@@ -30,7 +30,7 @@ If you want controlling mpv which was opened by double click on media file, you 
 ```
 input-ipc-server=/tmp/mpvsocket
 ```
-> **_NOTE:_**  If you prefer use different path, you need to change SOCKET_PATH in **mpv-remote.py
+> **_NOTE:_**  If you prefer use different path, you need to change SOCKET_PATH in mpv-remote.py
 
 ## Screenshots
 
