@@ -4,17 +4,7 @@
 	<meta charset="utf-8">
 	<title>MPV remote</title>
 	<link rel="stylesheet" href="/styles.css">
-	<script type="text/javascript">
-		function command(com){
-			const requestOptions = {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json'},
-				body: JSON.stringify({'command':com}),
-				mode: 'cors'
-			};
-			fetch("command/",requestOptions);
-		}
-	</script>
+	<script src="/script.js"></script>
 </head>
 <body>
 	<div>

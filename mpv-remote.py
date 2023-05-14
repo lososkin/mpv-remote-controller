@@ -26,6 +26,8 @@ class HttpRequestHandler(BaseHTTPRequestHandler):
             self.response(200, 'text/html', static_files['index.html'])
         elif self.path == '/styles.css':
             self.response(200, 'text/css', static_files['styles.css'])
+        elif self.path == '/script.js':
+            self.response(200, 'application/javascript', static_files['script.js'])
         elif self.path == '/subs':
             self.response(200, 'text/html', static_files['subs.html'])
         elif self.path == '/media':
