@@ -1,145 +1,223 @@
-from http.server import HTTPServer, BaseHTTPRequestHandler
-import os
+#!/usr/bin/python3
 import json
+import mimetypes
+import os
 import socket
+import subprocess
 import threading
+from http.server import BaseHTTPRequestHandler, HTTPServer
+from pathlib import Path
+
+DEFAULT_SOCKET_PATH = "/tmp/mpvsocket"
+DEFAULT_SERVER_ADDRESS = "0.0.0.0:8000"
 
 
-SOCKET_PATH = "/tmp/mpvsocket"
-SERVER_ADRESS = ('0.0.0.0', 8000)
+def _parse_server_address(address):
+    host, port = address.rsplit(":", 1)
+    return host, int(port)
 
-static_files = {}
-for static_file in os.listdir('static'):
-    with open(f'static/{static_file}', 'rb') as f:
-        static_files[static_file] = f.read()
+
+SOCKET_PATH = os.environ.get("SOCKET_PATH", DEFAULT_SOCKET_PATH)
+SERVER_ADDRESS = _parse_server_address(
+    os.environ.get("SERVER_ADDRESS", DEFAULT_SERVER_ADDRESS)
+)
+STATIC_DIR = Path(__file__).parent / "static"
+
+STATIC_ROUTES = {
+    "/": "index.html",
+    "/subs": "subs.html",
+    "/media": "media.html",
+    "/styles.css": "styles.css",
+    "/script.js": "script.js",
+}
+
+COMMAND_MAPPER = {
+    "sub": ["osd-auto", "cycle", "sub"],
+    "audio": ["osd-auto", "cycle", "audio"],
+    "speed+": ["osd-auto", "add", "speed", "0.1"],
+    "speed-": ["osd-auto", "add", "speed", "-0.1"],
+    "-10s": ["osd-auto", "seek", "-10"],
+    "+10s": ["osd-auto", "seek", "10"],
+    "volumeup": ["osd-auto", "add", "volume", "5"],
+    "volumedown": ["osd-auto", "add", "volume", "-5"],
+    "-min": ["osd-auto", "seek", "-60"],
+    "+min": ["osd-auto", "seek", "60"],
+    "space": ["cycle", "pause"],
+    "forward": ["osd-auto", "playlist-next"],
+    "back": ["osd-auto", "playlist-prev"],
+    "f": ["cycle", "fullscreen"],
+}
+
+SOCKET_ERROR_MSG = (
+    "Socket file not found!\n"
+    "1) Ensure mpv is running.\n"
+    "2) Check input-ipc-server option in your mpv config.\n"
+    "3) Check SOCKET_PATH env var or mpv-remote.py defaults"
+)
+
+
+def load_static_files():
+    static_files = {}
+    for path in STATIC_DIR.iterdir():
+        if path.is_file():
+            static_files[path.name] = path.read_bytes()
+    return static_files
+
+
+STATIC_FILES = load_static_files()
+
+
+def send_mpv_ipc(command):
+    with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as sock:
+        sock.connect(SOCKET_PATH)
+        payload = json.dumps({"command": command}, ensure_ascii=False) + "\n"
+        sock.send(payload.encode("utf-8"))
+
+
+def load_files_in_mpv(filenames):
+    for index, filename in enumerate(filenames):
+        mode = "replace" if index == 0 else "append"
+        send_mpv_ipc(["loadfile", str(Path.cwd() / filename), mode])
+
+
+def add_subtitle(filename):
+    send_mpv_ipc(["sub-add", str(Path.cwd() / filename)])
+
+
+def start_mpv(filenames):
+    paths = [str(Path.cwd() / name) for name in filenames]
+    subprocess.Popen(
+        ["mpv", f"--input-ipc-server={SOCKET_PATH}", *paths],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
 
 
 class HttpRequestHandler(BaseHTTPRequestHandler):
-    def response(self, code, content_type, data):
+    def respond(self, code, content_type, data):
         self.send_response(code)
-        self.send_header('content-type',content_type)
+        self.send_header("content-type", content_type)
         self.end_headers()
         self.wfile.write(data)
 
+    def respond_json(self, code, payload):
+        self.respond(
+            code,
+            "application/json",
+            json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+        )
+
+    def read_json_body(self):
+        length = int(self.headers.get("Content-Length", 0))
+        return json.loads(self.rfile.read(length))
+
+    def serve_static(self, filename):
+        data = STATIC_FILES.get(filename)
+        if data is None:
+            self.respond(404, "text/html", b"404")
+            return
+        content_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
+        self.respond(200, content_type, data)
+
+    def handle_getdirs(self):
+        entries = sorted(os.listdir())
+        dirs = [name for name in entries if os.path.isdir(name)]
+        files = [name for name in entries if os.path.isfile(name)]
+        self.respond_json(200, {"dirs": dirs, "files": files})
+
+    def handle_changedir(self):
+        target = self.read_json_body()["dir"]
+        path = Path.cwd() / target
+
+        if path.is_dir():
+            os.chdir(target)
+            self.respond_json(200, {"type": "dir"})
+            return
+
+        try:
+            add_subtitle(target)
+        except (FileNotFoundError, ConnectionRefusedError, OSError):
+            print(SOCKET_ERROR_MSG)
+        self.respond_json(200, {"type": "file"})
+
+    def handle_playnow(self):
+        filenames = self.read_json_body()["files"]
+        self.respond_json(200, {})
+
+        try:
+            load_files_in_mpv(filenames)
+        except (FileNotFoundError, ConnectionRefusedError, OSError):
+            threading.Thread(target=start_mpv, args=(filenames,), daemon=True).start()
+
+    def handle_appendtoplaylist(self):
+        filenames = self.read_json_body()["files"]
+        try:
+            for filename in filenames:
+                send_mpv_ipc(["loadfile", str(Path.cwd() / filename), "append"])
+        except (FileNotFoundError, ConnectionRefusedError, OSError):
+            print(SOCKET_ERROR_MSG)
+        self.respond_json(200, {})
+
+    def handle_command(self):
+        command_name = self.read_json_body()["command"]
+        command = COMMAND_MAPPER.get(command_name)
+        if command is None:
+            self.respond(400, "application/json", b'{"error": "unknown command"}')
+            return
+        try:
+            send_mpv_ipc(command)
+        except (FileNotFoundError, ConnectionRefusedError, OSError):
+            print(SOCKET_ERROR_MSG)
+        self.respond_json(200, {})
+
     def do_GET(self):
-        if self.path == '/':
-            self.response(200, 'text/html', static_files['index.html'])
-        elif self.path == '/styles.css':
-            self.response(200, 'text/css', static_files['styles.css'])
-        elif self.path == '/script.js':
-            self.response(200, 'application/javascript', static_files['script.js'])
-        elif self.path == '/subs':
-            self.response(200, 'text/html', static_files['subs.html'])
-        elif self.path == '/media':
-            self.response(200, 'text/html', static_files['media.html'])
-        elif self.path == "/getdirs/":
-            res = {'dirs':[],'files':[]}
-            for x in os.listdir():
-                if os.path.isdir(x):
-                    res['dirs'].append(x)
-                else:
-                    res['files'].append(x)
-            res['dirs'].sort()
-            res['files'].sort()
-            self.response(200, 'application/json', json.dumps(res, ensure_ascii=False).encode("utf-8"))
-        else:
-            self.response(404, 'text/html', b'404')
+        if self.path == "/getdirs/":
+            self.handle_getdirs()
+            return
+
+        static_file = STATIC_ROUTES.get(self.path)
+        if static_file:
+            self.serve_static(static_file)
+            return
+
+        self.respond(404, "text/html", b"404")
 
     def do_POST(self):
-        if self.path == "/changedir/":
-            self.send_response(200)
-            self.send_header('content-type','application/json')
-            self.end_headers()
-            data_string = self.rfile.read(int(self.headers['Content-Length']))
-            d = json.loads(data_string)['dir']
-            if os.path.isdir(os.path.join(os.getcwd(),d)):
-                os.chdir(d)
-                self.wfile.write(json.dumps({'type':'dir'}, ensure_ascii=False).encode("utf-8"))
-            else:
-                try:
-                    s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-                    s.connect(SOCKET_PATH)
-                    s.send(bytes('{ "command": ["sub-add", "'+os.path.join(os.getcwd(),d)+'"]}', 'utf-8') + b'\n')
-                    s.close()
-                except (FileNotFoundError, ConnectionRefusedError):
-                    print("Socket file not found!","1) Ensure mpv is running.","2) Check input-ipc-server option in your mpv config.","3) Check SOCKET_PATH in mpv-remote.py",sep='\n')
-                self.wfile.write(json.dumps({'type':'file'}, ensure_ascii=False).encode("utf-8"))
-        elif self.path == "/playnow/":
-            self.response(200, 'application/json', b'')
-            data_string = self.rfile.read(int(self.headers['Content-Length']))
-            filenames = json.loads(data_string)['files']
-            try:
-                s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-                s.connect(SOCKET_PATH)
-                s.send(bytes('{ "command": ["loadfile", "'+os.path.join(os.getcwd(),filenames[0])+'","replace"]}', 'utf-8') + b'\n')
-                s.close()
-                for filename in filenames[1:]:
-                    s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-                    s.connect(SOCKET_PATH)
-                    s.send(bytes('{ "command": ["loadfile", "'+os.path.join(os.getcwd(),filename)+'","append"]}', 'utf-8') + b'\n')
-                    s.close()
-            except (FileNotFoundError, ConnectionRefusedError):
-                def open_mpv():
-                    s = os.popen('mpv --input-ipc-server='+SOCKET_PATH+' '+' '.join(['"'+os.path.join(os.getcwd(),filename)+'"' for filename in filenames]))
-                    s.read()
-                mpv_thread = threading.Thread(target=open_mpv, args=(), daemon=True)
-                mpv_thread.start()
-        elif self.path == "/appendtoplaylist/":
-            data_string = self.rfile.read(int(self.headers['Content-Length']))
-            filenames = json.loads(data_string)['files']
-            try:
-                for filename in filenames:
-                    s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-                    s.connect(SOCKET_PATH)
-                    s.send(bytes('{ "command": ["loadfile", "'+os.path.join(os.getcwd(),filename)+'","append"]}', 'utf-8') + b'\n')
-                    s.close()
-            except (FileNotFoundError, ConnectionRefusedError):
-                print("Socket file not found!","1) Ensure mpv is running.","2) Check input-ipc-server option in your mpv config.","3) Check SOCKET_PATH in mpv-remote.py",sep='\n')
-            self.response(200, 'application/json', b'')
-        elif self.path == "/command/":
-            data_string = self.rfile.read(int(self.headers['Content-Length']))
-            command = json.loads(data_string)['command']
-            command_mapper = {
-                'sub': '["osd-auto","cycle", "sub"]',
-                'audio': '["osd-auto","cycle", "audio"]',
-                'speed+': '["osd-auto","add", "speed","0.1"]',
-                'speed-': '["osd-auto","add", "speed","-0.1"]',
-                '-10s': '["osd-auto","seek", "-10"]',
-                '+10s': '["osd-auto","seek", "10"]',
-                'volumeup': '["osd-auto","add", "volume","5"]',
-                'volumedown': '["osd-auto","add", "volume","-5"]',
-                '-min': '["osd-auto","seek", "-60"]',
-                '+min': '["osd-auto","seek", "60"]',
-                'space': '["cycle", "pause"]',
-                'forward': '["osd-auto","playlist-next"]',
-                'back': '["osd-auto","playlist-prev"]',
-                'f': '["cycle", "fullscreen"]',
-            }
-            try:
-                s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-                s.connect(SOCKET_PATH)
-                s.send(bytes(f'{{ "command": {command_mapper[command]} }}', 'utf-8') + b'\n')
-                s.close()
-            except (FileNotFoundError, ConnectionRefusedError):
-                print("Socket file not found!","1) Ensure mpv is running.","2) Check input-ipc-server option in your mpv config.","3) Check SOCKET_PATH in mpv-remote.py",sep='\n')
-            self.response(200, 'application/json', b'')
-        else:
-            self.response(404, 'text/html', b'404')
+        handlers = {
+            "/changedir/": self.handle_changedir,
+            "/playnow/": self.handle_playnow,
+            "/appendtoplaylist/": self.handle_appendtoplaylist,
+            "/command/": self.handle_command,
+        }
+        handler = handlers.get(self.path)
+        if handler:
+            handler()
+            return
+        self.respond(404, "text/html", b"404")
 
-http_server = HTTPServer(SERVER_ADRESS, HttpRequestHandler)
 
-try:
-    print(f"Starting mpv control server at http://{SERVER_ADRESS[0]}:{SERVER_ADRESS[1]}/")
-    if SERVER_ADRESS[0] == '0.0.0.0':
-        try:
-            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            s.connect(("8.8.8.8", 80))
-            print("IP in local network:", s.getsockname()[0])
-            s.close()
-        except:
-            pass
+def print_local_ip():
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+            sock.connect(("8.8.8.8", 80))
+            print("IP in local network:", sock.getsockname()[0])
+    except OSError:
+        pass
+
+
+def main():
+    http_server = HTTPServer(SERVER_ADDRESS, HttpRequestHandler)
+    host, port = SERVER_ADDRESS
+    print(f"Starting mpv control server at http://{host}:{port}/")
+    if host == "0.0.0.0":
+        print_local_ip()
     print("Quit the mpv server with CONTROL-C.")
-    http_server.serve_forever()
-except KeyboardInterrupt:
-    http_server.server_close()
-    print("\nMPV remote controller server stopped.")
+    try:
+        http_server.serve_forever()
+    except KeyboardInterrupt:
+        http_server.server_close()
+        print("\nMPV remote controller server stopped.")
+
+
+if __name__ == "__main__":
+    main()

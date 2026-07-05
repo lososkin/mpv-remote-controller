@@ -17,20 +17,41 @@ MPV remote controller is a program for remote controlling mpv player with device
 - [python 3](https://www.python.org/)
 
 ## Usage
-#### Run server
+
+### Run server
 
 ```sh
 python mpv-remote.py
 ```
-Now open your browser, go to **your_local_ip:8000** and enjoy the remote domination over mpv.
-> **_NOTE:_**  by default mpv-remote use port 8000 and ip 0.0.0.0. You can change it by change SERVER_ADRESS var in mpv-remote.py
 
-#### Open files by double click
-If you want controlling mpv which was opened by double click on media file, you should add in your mpv.conf next line
+Open your browser at **your_local_ip:8000** and control mpv remotely.
+
+### Configuration
+
+Defaults (used when env vars are not set):
+
+| Setting | Default |
+|---------|---------|
+| `SOCKET_PATH` | `/tmp/mpvsocket` |
+| `SERVER_ADDRESS` | `0.0.0.0:8000` |
+
+Override via environment variables:
+
+```sh
+export SOCKET_PATH=/tmp/mpvsocket
+export SERVER_ADDRESS=0.0.0.0:8000
+python mpv-remote.py
+```
+
+### Open files by double click
+
+If you want to control mpv opened by double-clicking a media file, add this to `mpv.conf`:
+
 ```
 input-ipc-server=/tmp/mpvsocket
 ```
-> **_NOTE:_**  If you prefer use different path, you need to change SOCKET_PATH in mpv-remote.py
+
+Use the same path as `SOCKET_PATH` (default above, or your custom value).
 
 ## Screenshots
 
